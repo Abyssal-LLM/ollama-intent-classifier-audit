@@ -31,19 +31,9 @@ Browse raw CSV data, view computed accuracy/latency metrics, and compare models 
 | `in_list` | Whether the answer came from the offered candidate list |
 | `correct` | For `native_out` this means *escaping* the list (correctly refusing), not picking |
 
-## Reproduce
-
-```bash
-# Per-call audit
-python test_ollama_v2.py --model <model> --out <file>.csv
-
-# Comparison table
-python score_audit.py <file1>.csv <file2>.csv ...
-```
-
 ## Dashboard Features
 
-- **Raw Data** — Virtual-scrolled table of all 48k+ rows per model, sortable columns, search/filter
+- **Raw Data** — Virtual-scrolled table of all 6k+ rows per model, sortable columns, search/filter
 - **Results** — Computed accuracy, rejection rate, latency (avg/median/p95), per-variant and per-mode breakdowns
 - **Compare** — Select any models for side-by-side metrics comparison with best/worst highlighting
 - **Diff View** — Split-screen comparison showing exactly where two models disagree
