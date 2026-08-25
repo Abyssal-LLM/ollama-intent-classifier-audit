@@ -40,4 +40,4 @@ Browse raw CSV data, view computed accuracy/latency metrics, and compare models 
 
 ## License
 
-Research use. Audit data provided as-is.
+[CC BY-NC-SA 4.0](LICENSE)
