@@ -4,7 +4,7 @@ Raw per-call audit results for each published model, from the full benchmark: **
 
 ## Live Dashboard
 
-**[View the interactive dashboard](https://abyssal-llm.github.io/ollama-intent-classifier-audit/github/)**
+**[View the interactive dashboard](https://abyssal-llm.github.io/ollama-intent-classifier-audit/)**
 
 Browse raw CSV data, view computed accuracy/latency metrics, and compare models side-by-side — all client-side, no server required.
 

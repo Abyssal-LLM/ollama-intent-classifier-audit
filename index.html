@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abyssal Audit Dashboard</title>
+<style>
+:root {
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #111827;
+  --bg-card: #1a2236;
+  --bg-card-hover: #1e2a42;
+  --bg-sidebar: #0d1220;
+  --border: #1e2d4a;
+  --accent: #3b82f6;
+  --accent-glow: rgba(59,130,246,0.25);
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+  --cyan: #06b6d4;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --row-h: 38px;
+  --sidebar-w: 300px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:'Inter','SF Pro Display',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);height:100vh;overflow:hidden;display:flex}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg-secondary)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+/* ── Sidebar ── */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;animation:slideIn .45s cubic-bezier(.16,1,.3,1)}
+.sidebar-head{padding:20px 18px 20px 20px;border-bottom:1px solid var(--border)}
+.sidebar-head h1{font-size:1.05rem;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-head p{font-size:.7rem;color:var(--text-muted);margin-top:3px}
+.sidebar-sec{padding:14px 16px 6px;font-size:.6rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);font-weight:700}
+.model-list{flex:1;overflow-y:auto;padding:4px 10px 4px 14px}
+.m-item{padding:9px 12px;border-radius:7px;cursor:pointer;transition:all .2s;border:1px solid transparent;margin-bottom:3px;display:flex;align-items:center;gap:9px}
+.m-item:hover{background:var(--bg-card);border-color:var(--border);transform:translateX(3px)}
+.m-item.active{background:var(--bg-card);border-color:var(--accent);box-shadow:0 0 18px var(--accent-glow)}
+.m-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.m-dot.stock{background:var(--text-muted)}
+.m-dot.fine{background:var(--green)}
+.m-item.active .m-dot{box-shadow:0 0 6px var(--green)}
+.m-name{font-size:.78rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.m-tag{font-size:.58rem;padding:2px 6px;border-radius:4px;background:var(--bg-secondary);color:var(--text-muted);flex-shrink:0}
+.m-item.active .m-tag{background:var(--accent);color:#fff}
+.sidebar-foot{padding:10px 14px;border-top:1px solid var(--border);font-size:.65rem;color:var(--text-muted);text-align:center}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:6px;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--bg-secondary);min-height:48px}
+.tab{padding:7px 15px;border-radius:6px;font-size:.78rem;font-weight:500;cursor:pointer;transition:all .2s;color:var(--text-secondary);border:1px solid transparent;position:relative;user-select:none}
+.tab:hover{color:var(--text-primary);background:var(--bg-card)}
+.tab.active{color:var(--accent);background:var(--bg-card);border-color:var(--border)}
+.tab.active::after{content:'';position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);width:28px;height:2px;background:var(--accent);border-radius:1px}
+.topbar-r{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sbox{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text-primary);font-size:.78rem;width:220px;outline:none;transition:border .2s}
+.sbox:focus{border-color:var(--accent)}
+.sbox::placeholder{color:var(--text-muted)}
+.rcount{font-size:.68rem;color:var(--text-muted);padding:3px 8px;background:var(--bg-card);border-radius:4px;font-variant-numeric:tabular-nums}
+
+.content{flex:1;overflow:hidden;position:relative}
+.tp{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;transform:translateY(6px)}
+.tp.on{opacity:1;pointer-events:auto;transform:translateY(0)}
+
+/* ── Raw Table ── */
+.raw-wrap{display:flex;flex-direction:column;height:100%}
+.raw-hdr{overflow:hidden;border-bottom:1px solid var(--border);background:var(--bg-secondary)}
+.raw-hdr table{width:100%;border-collapse:collapse;table-layout:fixed}
+.raw-hdr th{padding:9px 10px;text-align:left;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;user-select:none;transition:color .2s}
+.raw-hdr th:hover{color:var(--accent)}
+.raw-hdr th.sorted{color:var(--accent)}
+.raw-hdr th .arr{margin-left:3px;opacity:.4;font-size:.6rem}
+.raw-hdr th.sorted .arr{opacity:1}
+.raw-body{flex:1;overflow:auto;position:relative}
+.raw-body table{width:100%;border-collapse:collapse;table-layout:fixed}
+.raw-body td{padding:7px 10px;border-bottom:1px solid rgba(30,45,74,.5);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.raw-body tr{height:var(--row-h);transition:background .12s}
+.raw-body tr:hover{background:var(--bg-card)}
+.ct{color:var(--green);font-weight:600}.cf{color:var(--red);font-weight:600}
+.mt{color:var(--green)}.mf{color:var(--red)}
+.lat{font-variant-numeric:tabular-nums}
+.c-case{width:55px}.c-var{width:125px}.c-mode{width:55px}.c-draw{width:45px}
+.c-msg{width:220px}.c-gold{width:110px}.c-exp{width:110px}.c-out{width:110px}
+.c-match{width:55px}.c-corr{width:55px}.c-lat{width:75px}.c-tok{width:55px}
+
+/* ── Loading ── */
+.load-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-primary);z-index:10;gap:16px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}
+.load-txt{font-size:.82rem;color:var(--text-secondary)}
+.load-sub{font-size:.7rem;color:var(--text-muted)}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:10px;text-align:center;padding:40px}
+.empty .ico{font-size:2.8rem;opacity:.25}
+.empty h3{font-size:1rem;color:var(--text-secondary)}
+.empty p{font-size:.78rem;max-width:360px;line-height:1.5}
+
+/* ── Results ── */
+.res-wrap{padding:24px;max-width:1160px}
+.res-hdr{margin-bottom:22px}
+.res-hdr h2{font-size:1.2rem;font-weight:700;margin-bottom:3px}
+.res-hdr p{color:var(--text-muted);font-size:.78rem}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:26px}
+.mcard{background:var(--bg-card);border:1px solid var(--border);border-radius:9px;padding:14px 16px;transition:all .25s;animation:fadeUp .35s ease backwards}
+.mcard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.mcard .lb{font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:5px}
+.mcard .vl{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+.mcard .vl.g{color:var(--green)}.mcard .vl.r{color:var(--red)}.mcard .vl.b{color:var(--accent)}.mcard .vl.c{color:var(--cyan)}.mcard .vl.y{color:var(--yellow)}
+.mcard .sb{font-size:.67rem;color:var(--text-muted);margin-top:3px}
+.stitle{font-size:.95rem;font-weight:600;margin:22px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.stitle .ic{color:var(--accent)}
+.stitle .note{margin-left:auto;font-size:.66rem;font-weight:400;color:var(--text-muted);letter-spacing:.01em}
+.btable{width:100%;border-collapse:collapse;margin-bottom:18px}
+.btable th{text-align:left;padding:9px 12px;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:1px solid var(--border);font-weight:600}
+.btable td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:.78rem}
+.btable tbody tr{transition:background .12s}
+.btable tbody tr:hover{background:var(--bg-card)}
+.bcell{width:180px}
+.abar{height:7px;border-radius:4px;background:var(--bg-secondary);overflow:hidden}
+.abar-f{height:100%;border-radius:4px;transition:width .5s cubic-bezier(.16,1,.3,1)}
+
+/* ── Compare ── */
+.cmp-wrap{padding:24px;max-width:1360px}
+.cmp-hdr{margin-bottom:18px}
+.cmp-hdr h2{font-size:1.2rem;font-weight:700;margin-bottom:3px}
+.cmp-hdr p{color:var(--text-muted);font-size:.78rem}
+.cmp-sel{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}
+.cmp-chip{padding:7px 13px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;transition:all .2s;font-size:.75rem;display:flex;align-items:center;gap:5px;user-select:none}
+.cmp-chip:hover{border-color:var(--text-muted)}
+.cmp-chip.sel{border-color:var(--accent);background:rgba(59,130,246,.1);color:var(--accent)}
+.cmp-chk{width:13px;height:13px;border-radius:3px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;transition:all .2s;font-size:.55rem}
+.cmp-chip.sel .cmp-chk{background:var(--accent);border-color:var(--accent);color:#fff}
+.cmp-acts{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.btn{padding:7px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:.75rem;cursor:pointer;transition:all .2s;font-weight:500}
+.btn:hover{border-color:var(--accent);background:var(--bg-card-hover)}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.ctbl{width:100%;border-collapse:collapse}
+.ctbl th{padding:10px 12px;text-align:left;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--bg-primary);z-index:1}
+.ctbl td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:.78rem;font-variant-numeric:tabular-nums}
+.ctbl tbody tr{transition:background .12s}
+.ctbl tbody tr:hover{background:var(--bg-card)}
+.ctbl .ml{font-weight:600;min-width:170px}
+.best{color:var(--green);font-weight:700}
+.worst{color:var(--red);opacity:.7}
+
+/* ── Diff ── */
+.diff-sum{padding:14px;background:var(--bg-card);border-radius:8px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap}
+.diff-st{font-size:.78rem}
+.diff-st strong{color:var(--accent)}
+.diff-box{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.diff-pane{overflow:auto;max-height:580px}
+.diff-pane:first-child{border-right:1px solid var(--border)}
+.diff-ph{padding:9px 12px;background:var(--bg-secondary);border-bottom:1px solid var(--border);font-size:.75rem;font-weight:600;color:var(--accent);position:sticky;top:0;z-index:1;display:flex;justify-content:space-between}
+.dtbl{width:100%;border-collapse:collapse}
+.dtbl th{padding:7px 9px;text-align:left;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;background:var(--bg-secondary);z-index:1}
+.dtbl td{padding:5px 9px;border-bottom:1px solid rgba(30,45,74,.5);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.dtbl td.dh{background:rgba(239,68,68,.08)}
+.dtbl tbody tr{transition:background .12s}
+.dtbl tbody tr:hover{background:var(--bg-card)}
+
+@keyframes slideIn{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.mcard:nth-child(1){animation-delay:.04s}.mcard:nth-child(2){animation-delay:.08s}
+.mcard:nth-child(3){animation-delay:.12s}.mcard:nth-child(4){animation-delay:.16s}
+.mcard:nth-child(5){animation-delay:.2s}.mcard:nth-child(6){animation-delay:.24s}
+.mcard:nth-child(7){animation-delay:.28s}.mcard:nth-child(8){animation-delay:.32s}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-head">
+    <h1>Abyssal Audit</h1>
+    <p>Intent classifier benchmark &middot; Abyssal fine-tunes vs stock qwen2.5:1.5b</p>
+  </div>
+  <div class="sidebar-sec">Models</div>
+  <div class="model-list" id="modelList"></div>
+  <div class="sidebar-foot">243 intents &middot; 22 domains &middot; 724 cases &middot; 6,076 calls/model</div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="tab active" data-t="raw">&#8862; Raw Data</div>
+    <div class="tab" data-t="results">&#9672; Results</div>
+    <div class="tab" data-t="compare">&#8644; Compare</div>
+    <div class="topbar-r">
+      <input class="sbox" id="sbox" placeholder="Filter rows... (Ctrl+F)"/>
+      <span class="rcount" id="rcount">0 rows</span>
+    </div>
+  </div>
+  <div class="content">
+    <div class="tp on" id="pRaw">
+      <div class="raw-wrap">
+        <div class="load-overlay" id="rLoad" style="display:none">
+          <div class="spinner"></div>
+          <div class="load-txt">Fetching audit data...</div>
+          <div class="load-sub" id="loadName"></div>
+        </div>
+        <div class="empty" id="rEmpty">
+          <div class="ico">&#8862;</div>
+          <h3>Select a model</h3>
+          <p>Click a model in the sidebar to load its raw audit data.</p>
+        </div>
+        <div id="rContent" style="display:none;flex-direction:column;height:100%">
+          <div class="raw-hdr"><table><thead><tr id="rHead"></tr></thead></table></div>
+          <div class="raw-body" id="rBody"></div>
+        </div>
+      </div>
+    </div>
+    <div class="tp" id="pResults">
+      <div class="res-wrap" id="resBox">
+        <div class="empty"><div class="ico">&#9672;</div><h3>No model selected</h3><p>Select a model to view computed results.</p></div>
+      </div>
+    </div>
+    <div class="tp" id="pCompare">
+      <div class="cmp-wrap">
+        <div class="cmp-hdr"><h2>Compare Models</h2><p>Select two or more models to compare side by side.</p></div>
+        <div class="cmp-sel" id="cmpSel"></div>
+        <div class="cmp-acts" id="cmpActs" style="display:none">
+          <button class="btn on" id="bMet" onclick="cmpView('met')">&#9672; Metrics</button>
+          <button class="btn" id="bDif" onclick="cmpView('dif')" disabled>&#8644; Diff <span style="font-size:.6rem;opacity:.5;margin-left:3px">(2 models)</span></button>
+        </div>
+        <div id="cmpMet"></div>
+        <div id="cmpDif" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+const BASE = (() => {
+  if (window.location.protocol === 'file:') return null;
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    const u = new URL('..', window.location.href);
+    u.pathname = u.pathname.replace(/\/$/, '');
+    return u.href;
+  }
+  return 'https://raw.githubusercontent.com/Abyssal-LLM/ollama-intent-classifier-audit/main';
+})();
+const MODELS = [
+  {id:'stock-qwen2.5-1.5b',name:'qwen2.5:1.5b',tag:'Baseline',f:'audit_stock-qwen2.5-1.5b.csv'},
+  {id:'intent-classifier-general-v2',name:'intent-classifier-general-v2',tag:'v2',f:'audit_intent-classifier-general-v2.csv'},
+  {id:'intent-classifier-general-v3',name:'intent-classifier-general-v3',tag:'v3',f:'audit_intent-classifier-general-v3.csv'},
+  {id:'intent-classifier-general-overall',name:'intent-classifier-general-overall',tag:'Overall',f:'audit_intent-classifier-general-overall.csv'},
+  {id:'intent-classifier-general-oav2',name:'intent-classifier-general-oav2',tag:'OA v2',f:'audit_intent-classifier-general-oav2.csv'},
+  {id:'intent-classifier-general-acv1',name:'intent-classifier-general-acv1',tag:'AC v1',f:'audit_intent-classifier-general-acv1.csv'},
+  {id:'intent-classifier-general-accuracy',name:'intent-classifier-general-accuracy',tag:'Accuracy',f:'audit_intent-classifier-general-accuracy.csv'},
+];
+const VARS = ['exact','native_in_random','native_in_nearsyn','custom_in','native_out'];
+const VLBL = {exact:'Exact',native_in_random:'Native (Random)',native_in_nearsyn:'Native (Near-Syn)',custom_in:'Custom',native_out:'Native (Refusal)'};
+const MODES = ['free','enum'];
+const RH = 38, BUF = 25;
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+const cache = {};
+let selModel = null, curData = [], filtData = [], sortCol = null, sortDir = 1, query = '';
+let cmpSel = new Set(), cmpCache = {};
+
+// ═══════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════
+function parseCSV(t) {
+  const rows = [], lines = [];
+  let i = 0;
+  while (i < t.length) {
+    const line = [];
+    let f = '', q = false;
+    while (i < t.length) {
+      const c = t[i];
+      if (q) {
+        if (c === '"') { if (i+1 < t.length && t[i+1] === '"') { f += '"'; i += 2; } else { q = false; i++; } }
+        else { f += c; i++; }
+      } else {
+        if (c === '"') { q = true; i++; }
+        else if (c === ',') { line.push(f); f = ''; i++; }
+        else if (c === '\n' || c === '\r') { if (c === '\r' && i+1 < t.length && t[i+1] === '\n') i++; i++; break; }
+        else { f += c; i++; }
+      }
+    }
+    line.push(f);
+    if (line.length > 1 || line[0] !== '') lines.push(line);
+  }
+  if (!lines.length) return {h:[],r:[]};
+  const h = lines[0];
+  for (let r = 1; r < lines.length; r++) {
+    const o = {};
+    for (let c = 0; c < h.length; c++) o[h[c]] = c < lines[r].length ? lines[r][c] : '';
+    rows.push(o);
+  }
+  return {h, r: rows};
+}
+
+// ═══════════════════════════════════════
+// FETCH
+// ═══════════════════════════════════════
+async function fetchData(id) {
+  if (cache[id]) return cache[id];
+  const m = MODELS.find(x => x.id === id);
+  const resp = await fetch(`${BASE}/${m.f}`);
+  if (!resp.ok) throw new Error(`${m.f}: ${resp.status}`);
+  const {h, r} = parseCSV(await resp.text());
+  cache[id] = {h, r};
+  return cache[id];
+}
+
+// ═══════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════
+function initSidebar() {
+  document.getElementById('modelList').innerHTML = MODELS.map(m => {
+    const st = m.id.startsWith('stock');
+    return `<div class="m-item" data-id="${m.id}" onclick="pickModel('${m.id}')">
+      <div class="m-dot ${st?'stock':'fine'}"></div>
+      <span class="m-name">${m.name}</span>
+      <span class="m-tag">${m.tag}</span>
+    </div>`;
+  }).join('');
+}
+
+function pickModel(id) {
+  selModel = id;
+  document.querySelectorAll('.m-item').forEach(e => e.classList.toggle('active', e.dataset.id === id));
+  loadRaw(id);
+}
+
+// ═══════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  const v = t.dataset.t;
+  document.querySelectorAll('.tab').forEach(e => e.classList.toggle('active', e.dataset.t === v));
+  document.querySelectorAll('.tp').forEach(e => e.classList.toggle('on', e.id === 'p'+v.charAt(0).toUpperCase()+v.slice(1)));
+  if (v === 'compare') initCmpSel();
+  if (v === 'results' && selModel) renderResults(selModel);
+}));
+
+// ═══════════════════════════════════════
+// RAW DATA + VIRTUAL SCROLL
+// ═══════════════════════════════════════
+const COLS = [
+  {k:'case_id',l:'Case',c:'c-case'},{k:'variant',l:'Variant',c:'c-var'},
+  {k:'mode',l:'Mode',c:'c-mode'},{k:'draw',l:'Draw',c:'c-draw'},
+  {k:'message',l:'Message',c:'c-msg'},{k:'gold',l:'Gold',c:'c-gold'},
+  {k:'expected',l:'Expected',c:'c-exp'},{k:'output_norm',l:'Output',c:'c-out'},
+  {k:'matched',l:'Match',c:'c-match'},{k:'correct',l:'Correct',c:'c-corr'},
+  {k:'latency_ms',l:'Latency',c:'c-lat'},{k:'tokens',l:'Tokens',c:'c-tok'},
+];
+
+let vsBody, vsScrollAttached = false;
+
+function onVsScroll() { requestAnimationFrame(renderVS); }
+const vsCols = COLS.map(c => c.k);
+const colWidths = COLS.map(c => c.c);
+
+function renderHead() {
+  document.getElementById('rHead').innerHTML = COLS.map(c => {
+    const s = sortCol === c.k;
+    const a = s ? (sortDir===1?'&#9650;':'&#9660;') : '&#9661;';
+    return `<th class="${c.c} ${s?'sorted':''}" onclick="doSort('${c.k}')">${c.l}<span class="arr">${a}</span></th>`;
+  }).join('');
+}
+
+function doSort(col) {
+  if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+  applyFilter(); renderVS(); renderHead();
+}
+
+function applyFilter() {
+  let d = [...curData];
+  if (query) {
+    const q = query.toLowerCase();
+    d = d.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+  }
+  if (sortCol) {
+    d.sort((a,b) => {
+      let va=a[sortCol],vb=b[sortCol];
+      const na=Number(va),nb=Number(vb);
+      if (!isNaN(na) && !isNaN(nb)) return (na-nb)*sortDir;
+      return String(va).localeCompare(String(vb))*sortDir;
+    });
+  }
+  filtData = d;
+  document.getElementById('rcount').textContent = d.length.toLocaleString()+' rows';
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderVS() {
+  if (!vsBody) return;
+  const st = vsBody.scrollTop;
+  const vis = Math.ceil(vsBody.clientHeight / RH) + BUF;
+  const start = Math.max(0, Math.floor(st / RH) - BUF);
+  const rows = filtData;
+  const totalH = rows.length * RH;
+  // Build visible rows
+  let html = `<table style="width:100%;border-collapse:collapse;table-layout:fixed"><colgroup>${COLS.map(c=>`<col class="${c.c}">`).join('')}</colgroup><tbody>`;
+  // Spacer row for scroll offset
+  if (start > 0) html += `<tr style="height:${start*RH}px"><td colspan="${COLS.length}" style="padding:0;border:none"></td></tr>`;
+  const end = Math.min(rows.length, start + vis);
+  for (let i = start; i < end; i++) {
+    const r = rows[i];
+    html += '<tr>';
+    for (const k of vsCols) {
+      const v = r[k]||'';
+      let cls = '';
+      if (k==='matched') cls = v==='True'?'mt':'mf';
+      else if (k==='correct') cls = v==='True'?'ct':'cf';
+      else if (k==='latency_ms') cls = 'lat';
+      const disp = k==='latency_ms' ? (v ? Number(v).toFixed(0)+'ms' : '') : v;
+      html += `<td class="${cls}" title="${esc(String(v))}">${esc(disp)}</td>`;
+    }
+    html += '</tr>';
+  }
+  // Bottom spacer
+  if (end < rows.length) html += `<tr style="height:${(rows.length-end)*RH}px"><td colspan="${COLS.length}" style="padding:0;border:none"></td></tr>`;
+  html += '</tbody></table>';
+  vsBody.innerHTML = html;
+}
+
+async function loadRaw(id) {
+  document.getElementById('rEmpty').style.display = 'none';
+  document.getElementById('rContent').style.display = 'none';
+  const ld = document.getElementById('rLoad');
+  ld.style.display = 'flex';
+  ld.innerHTML = '<div class="spinner"></div><div class="load-txt">Fetching audit data...</div><div class="load-sub">'+esc(MODELS.find(m=>m.id===id)?.name||id)+'</div>';
+  try {
+    const d = await fetchData(id);
+    curData = d.r;
+    sortCol = null; sortDir = 1; query = '';
+    document.getElementById('sbox').value = '';
+    applyFilter();
+    renderHead();
+    ld.style.display = 'none';
+    document.getElementById('rContent').style.display = 'flex';
+    vsBody = document.getElementById('rBody');
+    if (!vsScrollAttached) { vsBody.addEventListener('scroll', onVsScroll, {passive:true}); vsScrollAttached = true; }
+    renderVS();
+    if (currentTab()==='results') renderResults(id);
+  } catch(e) {
+    ld.innerHTML = `<div class="empty"><div class="ico">&#9888;</div><h3>Failed to load</h3><p>${esc(e.message)}</p></div>`;
+  }
+}
+
+function currentTab() {
+  const a = document.querySelector('.tab.active');
+  return a ? a.dataset.t : 'raw';
+}
+
+// ── Search ──
+document.getElementById('sbox').addEventListener('input', e => {
+  query = e.target.value;
+  applyFilter();
+  if (vsBody) vsBody.scrollTop = 0;
+  renderVS();
+});
+
+// ═══════════════════════════════════════
+// RESULTS
+// ═══════════════════════════════════════
+function bv0(rows,v){const s=rows.filter(r=>r.variant===v);return s.length?s.filter(r=>r.correct==='True').length/s.length:null;}
+function metrics(rows) {
+  const n = rows.length;
+  if (!n) return null;
+  const bc = col => rows.filter(r=>r[col]==='True').length;
+  const avg = col => { const a=rows.map(r=>Number(r[col])).filter(x=>!isNaN(x)); return a.length?a.reduce((s,v)=>s+v,0)/a.length:0; };
+  const med = col => { const a=rows.map(r=>Number(r[col])).filter(x=>!isNaN(x)).sort((a,b)=>a-b); if(!a.length)return 0; const m=a.length>>1; return a.length%2?a[m]:(a[m-1]+a[m])/2; };
+  const p95 = col => { const a=rows.map(r=>Number(r[col])).filter(x=>!isNaN(x)).sort((a,b)=>a-b); return a.length?a[Math.floor(a.length*.95)]:0; };
+  const corr=bc('correct'), mat=bc('matched'), il=bc('in_list');
+  // Scored outcome. For native_out the correct behaviour is ESCAPING the candidate
+  // list (a clean none_of_the_above), which the CSV records as in_list=False --
+  // the `correct` column is False on every native_out row and cannot be used here.
+  const ok = r => r.variant==='native_out' ? r.in_list!=='True' : r.correct==='True';
+  const bv={};
+  for (const v of VARS) { const s=rows.filter(r=>r.variant===v), sc=s.filter(ok).length; bv[v]={t:s.length,c:sc,a:s.length?sc/s.length:0}; }
+  const bm={};
+  for (const m of MODES) { const s=rows.filter(r=>r.mode===m&&r.variant!=='native_out'), sc=s.filter(r=>r.correct==='True').length; bm[m]={t:s.length,c:sc,a:s.length?sc/s.length:0}; }
+  const no=rows.filter(r=>r.variant==='native_out'), rej=no.filter(r=>r.in_list!=='True').length;
+  const ins=rows.filter(r=>r.variant!=='native_out'), inc=ins.filter(r=>r.correct==='True').length;
+  const insIl=ins.filter(r=>r.in_list==='True').length;
+  return {n,corr,mat,il,acc:corr/n,mr:mat/n,ir:il/n,al:avg('latency_ms'),ml:med('latency_ms'),pl:p95('latency_ms'),at:avg('tokens'),
+    rr:no.length?rej/no.length:0,not:no.length,inn:ins.length,iacc:ins.length?inc/ins.length:0,
+    cst:bv0(rows,'custom_in'),
+    iir:ins.length?insIl/ins.length:0,cases:new Set(rows.map(r=>r.case_id)).size,bv,bm};
+}
+
+function renderResults(id) {
+  const box = document.getElementById('resBox');
+  const d = cache[id];
+  if (!d) { box.innerHTML='<div class="empty"><h3>Loading...</h3><p>Select the model in Raw Data tab first.</p></div>'; return; }
+  const m = metrics(d.r);
+  if (!m) { box.innerHTML='<div class="empty"><h3>No data</h3></div>'; return; }
+  const md = MODELS.find(x=>x.id===id);
+  const p = v => (v*100).toFixed(1)+'%';
+  const ms = v => v.toFixed(0)+'ms';
+  const bc = v => v>=.9?'var(--green)':v>=.7?'var(--yellow)':'var(--red)';
+  box.innerHTML = `
+    <div class="res-hdr"><h2>${esc(md?.name||id)}</h2><p>${m.n.toLocaleString()} calls &middot; ${m.cases.toLocaleString()} cases &middot; ${p(m.iacc)} in-scope accuracy &middot; ${p(m.rr)} rejection</p></div>
+    <div class="mgrid">
+      <div class="mcard"><div class="lb">In-Scope Accuracy</div><div class="vl ${m.iacc>=.9?'g':m.iacc>=.7?'y':'r'}">${p(m.iacc)}</div><div class="sb">${(m.inn-0).toLocaleString()} calls where the gold intent was offered</div></div>
+      <div class="mcard"><div class="lb">Rejection Rate</div><div class="vl c">${p(m.rr)}</div><div class="sb">escaped the list on ${m.not.toLocaleString()} refusal tests</div></div>
+      <div class="mcard"><div class="lb">Overall Accuracy</div><div class="vl ${m.acc>=.9?'g':m.acc>=.7?'y':'r'}">${p(m.acc)}</div><div class="sb">${m.corr.toLocaleString()} / ${m.n.toLocaleString()} &middot; refusal tests scored strict</div></div>
+      <div class="mcard"><div class="lb">Avg Latency</div><div class="vl b">${ms(m.al)}</div><div class="sb">median ${ms(m.ml)}</div></div>
+      <div class="mcard"><div class="lb">P95 Latency</div><div class="vl b">${ms(m.pl)}</div><div class="sb">95th percentile</div></div>
+      <div class="mcard"><div class="lb">Avg Tokens</div><div class="vl c">${m.at.toFixed(1)}</div><div class="sb">per response</div></div>
+      <div class="mcard"><div class="lb">Invented-Name Accuracy</div><div class="vl ${m.cst>=.9?'g':m.cst>=.7?'y':'r'}">${p(m.cst)}</div><div class="sb">intents renamed to unseen labels</div></div>
+      <div class="mcard"><div class="lb">In-List Obedience</div><div class="vl b">${p(m.ir)}</div><div class="sb">${p(m.iir)} across in-scope calls</div></div>
+      <div class="mcard"><div class="lb">Total Calls</div><div class="vl g">${m.n.toLocaleString()}</div><div class="sb">${m.cases.toLocaleString()} unique cases &times; variant &times; mode &times; draw</div></div>
+    </div>
+    <div class="stitle"><span class="ic">&#9672;</span> Accuracy by Variant <span class="note">Native (Refusal) scores an escape from the list, not a pick</span></div>
+    <table class="btable"><thead><tr><th>Variant</th><th>Calls</th><th>Correct</th><th>Accuracy</th><th class="bcell">Visual</th></tr></thead><tbody>
+    ${VARS.map(v=>{const d=m.bv[v];return`<tr><td style="font-weight:600">${VLBL[v]}</td><td>${d.t.toLocaleString()}</td><td>${d.c.toLocaleString()}</td><td style="font-variant-numeric:tabular-nums;font-weight:600;color:${bc(d.a)}">${p(d.a)}</td><td class="bcell"><div class="abar"><div class="abar-f" style="width:${d.a*100}%;background:${bc(d.a)}"></div></div></td></tr>`;}).join('')}
+    </tbody></table>
+    <div class="stitle"><span class="ic">&#9672;</span> In-Scope Accuracy by Mode <span class="note">refusal tests excluded &mdash; they are free-generation only</span></div>
+    <table class="btable"><thead><tr><th>Mode</th><th>Calls</th><th>Correct</th><th>Accuracy</th><th class="bcell">Visual</th></tr></thead><tbody>
+    ${MODES.map(mo=>{const d=m.bm[mo];return`<tr><td style="font-weight:600">${mo==='free'?'Free Generation':'Enum (Constrained)'}</td><td>${d.t.toLocaleString()}</td><td>${d.c.toLocaleString()}</td><td style="font-variant-numeric:tabular-nums;font-weight:600;color:${bc(d.a)}">${p(d.a)}</td><td class="bcell"><div class="abar"><div class="abar-f" style="width:${d.a*100}%;background:${bc(d.a)}"></div></div></td></tr>`;}).join('')}
+    </tbody></table>`;
+}
+
+// ═══════════════════════════════════════
+// COMPARE
+// ═══════════════════════════════════════
+function initCmpSel() {
+  document.getElementById('cmpSel').innerHTML = MODELS.map(m => {
+    const s = cmpSel.has(m.id);
+    return `<div class="cmp-chip ${s?'sel':''}" onclick="togCmp('${m.id}')"><span class="cmp-chk">${s?'&#10003;':''}</span>${m.name}</div>`;
+  }).join('');
+}
+
+function togCmp(id) {
+  if (cmpSel.has(id)) cmpSel.delete(id); else cmpSel.add(id);
+  initCmpSel();
+  const twoModels = cmpSel.size === 2;
+  document.getElementById('bDif').disabled = !twoModels;
+  document.getElementById('cmpActs').style.display = cmpSel.size > 0 ? '' : 'none';
+  if (!twoModels) { document.getElementById('cmpDif').style.display = 'none'; document.getElementById('cmpMet').style.display = ''; document.getElementById('bMet').classList.add('on'); document.getElementById('bDif').classList.remove('on'); }
+  renderCmpMet();
+}
+
+function cmpView(v) {
+  document.getElementById('bMet').classList.toggle('on', v==='met');
+  document.getElementById('bDif').classList.toggle('on', v==='dif');
+  document.getElementById('cmpMet').style.display = v==='met'?'':'none';
+  document.getElementById('cmpDif').style.display = v==='dif'?'':'none';
+  if (v==='dif') renderDiff();
+}
+
+async function renderCmpMet() {
+  const box = document.getElementById('cmpMet');
+  if (!cmpSel.size) { box.innerHTML=''; return; }
+  const ids = [...cmpSel];
+  box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>';
+  const ms = {};
+  for (const id of ids) {
+    try { const d=await fetchData(id); cmpCache[id]=d; ms[id]=metrics(d.r); } catch(e) { ms[id]=null; }
+  }
+  const p = v => v!=null?(v*100).toFixed(1)+'%':'—';
+  const la = v => v!=null?v.toFixed(0)+'ms':'—';
+  const hl = (vals,hi) => {
+    const nv = vals.map(v=>v!=null?v:(hi?-Infinity:Infinity));
+    const best = hi?Math.max(...nv):Math.min(...nv);
+    const worst = hi?Math.min(...nv):Math.max(...nv);
+    return vals.map(v => v==null?'':v===best&&best!==worst?'best':v===worst&&best!==worst?'worst':'');
+  };
+  const rows = [
+    {l:'Total Calls',k:'n',f:v=>v?.toLocaleString()||'—',h:null},
+    {l:'In-Scope Accuracy',k:'iacc',f:p,h:true},
+    {l:'Rejection Rate',k:'rr',f:p,h:true},
+    {l:'Overall Accuracy',k:'acc',f:p,h:true},
+    {l:'In-List Obedience',k:'ir',f:p,h:null},
+    {l:'Avg Latency',k:'al',f:la,h:false},
+    {l:'Median Latency',k:'ml',f:la,h:false},
+    {l:'P95 Latency',k:'pl',f:la,h:false},
+    {l:'Avg Tokens',k:'at',f:v=>v?.toFixed(1)||'—',h:null},
+  ];
+  for (const v of VARS) rows.push({l:`Accuracy: ${VLBL[v]}`,k:'x',f:p,h:v!=='native_out'?true:null,gv:m=>m?.bv?.[v]?.a??null});
+  for (const mo of MODES) rows.push({l:`In-scope accuracy: ${mo==='free'?'Free Gen':'Enum'}`,k:'x',f:p,h:true,gv:m=>m?.bm?.[mo]?.a??null});
+
+  let h = '<table class="ctbl"><thead><tr><th>Metric</th>';
+  for (const id of ids) h += `<th>${esc(MODELS.find(m=>m.id===id)?.name||id)}</th>`;
+  h += '</tr></thead><tbody>';
+  for (const r of rows) {
+    const vals = ids.map(id => r.gv ? r.gv(ms[id]) : ms[id]?.[r.k] ?? null);
+    const cls = r.h!=null ? hl(vals,r.h) : vals.map(()=>'');
+    h += `<tr><td class="ml">${r.l}</td>`;
+    for (let i=0;i<ids.length;i++) h += `<td class="${cls[i]}">${r.f(vals[i])}</td>`;
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  box.innerHTML = h;
+}
+
+// ═══════════════════════════════════════
+// DIFF VIEW
+// ═══════════════════════════════════════
+async function renderDiff() {
+  const box = document.getElementById('cmpDif');
+  const ids = [...cmpSel];
+  if (ids.length!==2) { box.innerHTML='<p style="color:var(--text-muted);padding:20px">Select exactly 2 models.</p>'; return; }
+  box.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted)"><div class="spinner" style="margin:0 auto 10px"></div>Computing diff...</div>';
+  for (const id of ids) { if(!cmpCache[id]) try{cmpCache[id]=await fetchData(id);}catch(e){box.innerHTML=`<p style="color:var(--red);padding:20px">Failed: ${esc(e.message)}</p>`;return;} }
+  const a=cmpCache[ids[0]].r, b=cmpCache[ids[1]].r;
+  const rk = r => `${r.case_id}|${r.variant}|${r.mode}|${r.draw}`;
+  const mA=new Map(a.map(r=>[rk(r),r])), mB=new Map(b.map(r=>[rk(r),r]));
+  const diffs=[];
+  for (const [k,ra] of mA) { const rb=mB.get(k); if(rb&&(ra.output_norm!==rb.output_norm||ra.correct!==rb.correct)) diffs.push({ra,rb}); }
+  const oA=[...mA.keys()].filter(k=>!mB.has(k)).length;
+  const oB=[...mB.keys()].filter(k=>!mA.has(k)).length;
+  const nA=MODELS.find(m=>m.id===ids[0]), nB=MODELS.find(m=>m.id===ids[1]);
+  const dc=['case_id','variant','mode','message','gold','expected','output_norm','correct','latency_ms'];
+  const renderPane = (rows, key, label) => {
+    let h=`<div class="diff-pane"><div class="diff-ph">${esc(label)}<span style="font-size:.68rem;color:var(--text-muted)">${diffs.length} diffs</span></div><table class="dtbl"><thead><tr>${dc.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+    for (const d of diffs.slice(0,500)) {
+      const r = d[key];
+      h += '<tr>';
+      for (const c of dc) {
+        const v=r[c]||'';
+        const hl = (c==='output_norm'||c==='correct')&&d.ra.output_norm!==d.rb.output_norm ? 'dh' : '';
+        h += `<td class="${hl}" title="${esc(v)}">${esc(c==='latency_ms'&&v?Number(v).toFixed(0)+'ms':v)}</td>`;
+      }
+      h += '</tr>';
+    }
+    h += '</tbody></table></div>';
+    return h;
+  };
+  box.innerHTML = `
+    <div class="diff-sum">
+      <div class="diff-st"><strong>${diffs.length.toLocaleString()}</strong> differing rows</div>
+      <div class="diff-st"><strong>${oA}</strong> only in ${esc(nA?.name||ids[0])}</div>
+      <div class="diff-st"><strong>${oB}</strong> only in ${esc(nB?.name||ids[1])}</div>
+      <div class="diff-st">out of <strong>${a.length.toLocaleString()}</strong> shared</div>
+    </div>
+    <div class="diff-box">
+      ${renderPane(diffs,'ra',nA?.name||ids[0])}
+      ${renderPane(diffs,'rb',nB?.name||ids[1])}
+    </div>
+    ${diffs.length>500?`<p style="text-align:center;color:var(--text-muted);padding:14px;font-size:.78rem">Showing 500 of ${diffs.length.toLocaleString()} differences</p>`:''}`;
+  // Sync scroll
+  const panes = box.querySelectorAll('.diff-pane');
+  let sync=false;
+  panes.forEach((p,i)=>p.addEventListener('scroll',()=>{if(sync)return;sync=true;panes[i?0:1].scrollTop=p.scrollTop;sync=false;},{passive:true}));
+}
+
+// ═══════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==='f') { e.preventDefault(); document.getElementById('sbox').focus(); }
+});
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+initSidebar();
+</script>
+</body>
+</html>
