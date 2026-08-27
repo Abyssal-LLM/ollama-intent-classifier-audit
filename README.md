@@ -19,6 +19,7 @@ Browse raw CSV data, view computed accuracy/latency metrics, and compare models 
 | `audit_intent-classifier-general-oav2.csv` | `Abyssal/intent-classifier-general-oav2` | OA v2 |
 | `audit_intent-classifier-general-acv1.csv` | `Abyssal/intent-classifier-general-acv1` | AC v1 |
 | `audit_intent-classifier-general-accuracy.csv` | `Abyssal/intent-classifier-general-accuracy` | Accuracy |
+| `audit_intent-classifier-general-acv3.csv` | `Abyssal/intent-classifier-general-acv3` | AC v3 |
 
 ## Columns
 
